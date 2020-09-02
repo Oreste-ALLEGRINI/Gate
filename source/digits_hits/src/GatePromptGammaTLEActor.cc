@@ -13,7 +13,6 @@
 #include "GatePromptGammaTLEActorMessenger.hh"
 #include "GateImageOfHistograms.hh"
 #include "GateDetectorConstruction.hh"
-
 #include <G4Proton.hh>
 #include <G4VProcess.hh>
 
@@ -66,6 +65,7 @@ void GatePromptGammaTLEActor::Construct()
 
   //set up and allocate runtime images.
   SetTLEIoH(mImageGamma);
+  
   if (mIsDebugOutputEnabled){
     //set up and allocate lasthiteventimage
     SetOriginTransformAndFlagToImage(mLastHitEventImage);
@@ -77,12 +77,53 @@ void GatePromptGammaTLEActor::Construct()
     SetTrackIoH(trackl);
     SetTrackIoH(tracklsq);
   }
+  
 
   // Force hit type to random
   if (mStepHitType != RandomStepHitType) {
     GateWarning("Actor '" << GetName() << "' : stepHitType forced to 'random'" << std::endl);
   }
   SetStepHitType("random");
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  MODIF S.MARTIN  //////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  sizeX = 35; //size of the actor in voxel
+  sizeY = 85;
+  sizeZ = 35;
+  //pTfile = new TFile("output/timedistrib.root","RECREATE");
+  int index_image=0; // Index in actor
+  int index = 0; // Index in the TH2D array
+  for( unsigned int k=0; k<sizeZ; k++) {
+    for( unsigned int j=0; j<sizeY; j++) {
+      for( unsigned int i=0; i<sizeX; i++) {
+       if( j<85 && i==15 && k==17) //Chossing the coordinates of the Voxels of Interest, numbers of VoI must be <= 85
+        { pProtonTimeDistribution[index] = new TH2D(Form("ProtonEnergyDistributionX%iY%iZ%i", k,j,i),Form("Proton Energy Distribution X=%i Y=%i Z=%i", k,j,i),400 ,0 ,150,400,3.5,4);
+            pProtonTimeDistribution[index]->SetXTitle("Energy (MeV)");
+            pProtonTimeDistribution[index]->SetYTitle("Time (ns)");
+            
+          pGammaTimeDistribution[index] = new TH2D(Form("GammaEnergyDistributionX%iY%iZ%i", k,j,i),Form("Gamma Energy Distribution X=%i Y=%i Z=%i", k,j,i),400 ,0 ,10,400,3.5,4);
+            pGammaTimeDistribution[index]->SetXTitle("Energy (MeV)");
+            pGammaTimeDistribution[index]->SetYTitle("Time (ns)");
+            
+          pTime[index] = new TH2D(Form("TimeDistributionX%iY%iZ%i", k,j,i),Form("Time Distribution X=%i Y=%i Z=%i", k,j,i),400 ,0 ,150,400,0,5);
+          
+          
+          true_index[index]=index_image;
+          index++;
+          
+        }
+
+        index_image++;
+      }
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  END MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
 
   // Set to zero
   //ResetData(); //allocate implies reset
@@ -99,12 +140,74 @@ void GatePromptGammaTLEActor::ResetData()
   tracklsq->Reset();
   mLastHitEventImage.Fill(-1);
 }
-//-----------------------------------------------------------------------------
-
+//
 
 //-----------------------------------------------------------------------------
 void GatePromptGammaTLEActor::SaveData()
 {
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  MODIF S.MARTIN  //////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  pTfile = new TFile("output/energydistrib.root","RECREATE");
+
+  double mean[104125]; //104125 = nb of voxels of the actor
+  double sigma[104125];
+
+  std::ofstream outfile;
+  outfile.open("output/tof.dat");
+
+for (int i = 0; i < 104125; ++i)
+{
+
+  mean[i] = lt[i]/l[i];
+  sigma[i] = sqrt(lt2[i]/l[i]-pow((lt[i]/l[i]),2));
+  if (NProt[i]==1) sigma[i] = 0;
+  if (NProt[i]==0) 
+  {
+    mean[i]=-1;
+    sigma[i]=0;
+  }
+  outfile << i << '\t' << mean[i] << '\t'<< sigma[i] << '\t'<< NProt[i] << std::endl;
+
+}
+outfile.close();
+
+pTfile -> cd();
+
+int index_image =0;
+int index=0;
+  for( unsigned int k=0; k<sizeZ; k++) {
+    for(unsigned int j=0; j<sizeY; j++) {
+      for( unsigned int i=0; i<sizeX; i++) {
+       
+        if (j<85 && i==15 && k==17 ){ 
+          pProtonTimeDistribution[index_image]->Draw("COLZ SAME");
+          pGammaTimeDistribution[index_image]->Draw("COLZ SAME");
+          pProtonTimeDistribution[index_image] -> Write(Form("ProtonEnergyDistribX%iY%iZ%i", k,j,i));
+          pGammaTimeDistribution[index_image] -> Write(Form("GammaEnergyDistribX%iY%iZ%i", k,j,i));
+          
+          for (int i = 0; i < 400; ++i)
+          {
+            
+            pTime[index_image]->SetBinContent(i,floor(mean[index]*400/5),1);
+            pTime[index_image]->SetBinContent(i,floor((mean[index]+2*sigma[index])*400/5),1);
+            pTime[index_image]->SetBinContent(i,floor((mean[index]-2*sigma[index])*400/5),1);
+          }
+          pTime[index_image]->Write(Form("TimeDistribX%iY%iZ%i", k,j,i));
+          pTime[index_image]->Draw("SAME");
+        index_image++;}
+        index++;
+      }
+    }
+  }
+pTfile->Close();
+
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  END MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
   // Data are normalized by the number of primaries
   if (alreadyHere) {
     GateError("The GatePromptGammaTLEActor has already been saved and normalized. However, it must write its results only once. Remove all 'SaveEvery' for this actor. Abort.");
@@ -115,7 +218,9 @@ void GatePromptGammaTLEActor::SaveData()
   // Number of primaries for normalisation, so that we have the number per proton, which is easier to use.
   mImageGamma->Scale(1./(GateActorManager::GetInstance()->GetCurrentEventId() + 1));// +1 because start at zero
   mImageGamma->Write(mSaveFilename);
-
+  
+  //pGammaTimeDistribution->Write("output/helpme");
+  
   if (mIsDebugOutputEnabled) {
     BuildVarianceOutput();
     tle->Write(G4String(removeExtension(mSaveFilename))+"-debugtle."+G4String(getExtension(mSaveFilename)));
@@ -123,9 +228,9 @@ void GatePromptGammaTLEActor::SaveData()
     trackl->Write(G4String(removeExtension(mSaveFilename))+"-debugtrackl."+G4String(getExtension(mSaveFilename)));
     tracklsq->Write(G4String(removeExtension(mSaveFilename))+"-debugtracklsq."+G4String(getExtension(mSaveFilename)));
   }
-
   alreadyHere = true;
 
+  
 }
 //-----------------------------------------------------------------------------
 
@@ -166,7 +271,13 @@ void GatePromptGammaTLEActor::UserSteppingActionInVoxel(int index, const G4Step 
   const G4ParticleDefinition *particle = step->GetTrack()->GetParticleDefinition();
   const G4double &particle_energy = step->GetPreStepPoint()->GetKineticEnergy();
   const G4double &distance = step->GetStepLength();
+  // modif Simon
+  const double &tof = step->GetPreStepPoint()->GetLocalTime();
+  const G4int &TrackID = step->GetTrack()->GetTrackID();
 
+  // Check if proton is primary (to be removed when GetGlobalTime is fixed)
+  if (TrackID != 1) return;
+  //
   // Check particle type ("proton")
   if (particle != G4Proton::Proton()) return;
 
@@ -196,7 +307,7 @@ void GatePromptGammaTLEActor::UserSteppingActionInVoxel(int index, const G4Step 
   }
 
   // Regular TLE
-  G4Material *material = step->GetPreStepPoint()->GetMaterial();
+  G4Material * material = step->GetPreStepPoint()->GetMaterial();
 
   /* Because step->GetPreStepPoint() and tmptrackl->GetVoxelCenterFromIndex(index) are different positions,
    * we may get different materials if the phantom-volume and tle-output-volume are different (size, offset, voxelsize).
@@ -208,16 +319,49 @@ void GatePromptGammaTLEActor::UserSteppingActionInVoxel(int index, const G4Step 
     G4String materialname = phantom->GetMaterialNameFromLabel(phantomvox->GetValue(tmptrackl->GetVoxelCenterFromIndex(index)));
     material = GateDetectorConstruction::GetGateDetectorConstruction()->mMaterialDatabase.GetMaterial(materialname);
   }
-
   // Get value from histogram. We do not check the material index, and
   // assume everything exist (has been computed by InitializeMaterial)
-  TH1D *h = data.GetGammaEnergySpectrum(material->GetIndex(), particle_energy);
-
+  TH1D * h = data.GetGammaEnergySpectrum(material->GetIndex(), particle_energy);
   // Also take the particle weight into account
   double w = step->GetTrack()->GetWeight();
 
-  // Do not scale h directly because it will be reused
-  mImageGamma->AddValueDouble(index, h, w * distance * material->GetDensity() / (g / cm3));
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  MODIF S.MARTIN  //////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  bool boolindex = false;
+  int THindex;
+  for (int l = 0; l < 85; ++l)
+        {
+          if(index==true_index[l]) //Check if the voxel is of interest
+            {
+              THindex = l;
+              boolindex = true;
+            }
+        }
+  if (boolindex)
+  {
+    pProtonTimeDistribution[THindex]->Fill(particle_energy,tof);
+     
+     for (int i = 0; i < 50; ++i)
+     {
+        pGammaTimeDistribution[THindex]->Fill(h->GetRandom(),tof); 
+     }
+  }
+  lt[index] = lt[index] + distance*tof;
+  lt2[index] = lt2[index] + (distance*tof*tof);
+  l[index] = l[index] + distance;
+  l2[index] = l2[index] + distance*distance;
+  NProt[index]=NProt[index] +1;
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  END MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+   // pTimeDistribution->Fill(particle_energy/MeV,tof/ns);
+      // Do not scale h directly because it will be reused
+ 
+   mImageGamma->AddValueDouble(index, h, w * distance * material->GetDensity() / (g / cm3));
   // (material is converted from internal units to g/cm3)
 }
 //-----------------------------------------------------------------------------
@@ -232,6 +376,8 @@ void GatePromptGammaTLEActor::BuildVarianceOutput() {
   SetTLEIoH(tle);
   SetTLEIoH(tlevariance);
 
+  
+
   //finalize trackl,tracklsq. NOTE: this loop is over voxelindex,protonenergy
   double *itmptrackl = tmptrackl->GetDataDoublePointer();
   double *itrackl = trackl->GetDataDoublePointer();
@@ -245,7 +391,6 @@ void GatePromptGammaTLEActor::BuildVarianceOutput() {
 
   GateVImageVolume* phantom = GetPhantom(); //this has the correct label to material database.
   GateImage* phantomvox = phantom->GetImage(); //this has the array of voxels.
-
   //compute TLE output. first, loop over voxels
   for(int vi = 0; vi < tmptrackl->GetNumberOfValues() ;vi++ ){
     //PixelType label = phantomvox->GetValue(tmptrackl->GetCoordinatesFromIndex(vi));
@@ -314,7 +459,6 @@ void GatePromptGammaTLEActor::BuildVarianceOutput() {
     }*/
 
   }//end voxelloop
-
 }
 //-----------------------------------------------------------------------------
 

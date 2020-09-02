@@ -222,7 +222,7 @@ void GateApplicationMgrMessenger::SetNewValue(G4UIcommand* command, G4String new
                     << f << "." << std::endl);
       }
     }
-    appMgr->SetTotalNumberOfPrimaries(SetTotalNumberOfPrimariesCmd->GetNewDoubleValue(newValue)*f);
+    appMgr->SetTotalNumberOfPrimaries(SetTotalNumberOfPrimariesCmd->GetNewDoubleValue(newValue)*f); //Removed *f because scaled 2 times otherwise
   }
   else if (command == SetNumberOfPrimariesPerRunCmd) {
     appMgr->SetNumberOfPrimariesPerRun(SetNumberOfPrimariesPerRunCmd->GetNewDoubleValue(newValue));

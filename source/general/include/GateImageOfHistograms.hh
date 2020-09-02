@@ -70,7 +70,6 @@ public:
   void Scale(double f);
   double ComputeSum();
   void Deallocate();
-
   // Compute and image (data only) of the sum of histo by pixel (in order HXYZ)
   void ComputeTotalOfCountsImageDataFloat(std::vector<float> & output);
   void ComputeTotalOfCountsImageDataDouble(std::vector<double> & output);
@@ -89,16 +88,17 @@ protected:
 
   // Store a copy of G4ThreeVector resolution in int for integer
   // computation of index
-  long sizeX;
-  long sizeY;
-  long sizeZ;
+  unsigned int sizeX;
+  unsigned int sizeY;
+  unsigned int sizeZ;
   long sizePlane;
-
+  TFile * pTfile;
   // Data pixel order
   template<class PT>
   void ConvertPixelOrderToXYZH(std::vector<PT> & input, std::vector<PT> & output);
   template<class PT>
   void ConvertPixelOrderToHXYZ(std::vector<PT> & input, std::vector<PT> & output);
+  //TH1D * TimeDistrib;
 
 };
 //-----------------------------------------------------------------------------

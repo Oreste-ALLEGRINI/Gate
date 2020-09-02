@@ -13,6 +13,9 @@
 #include "Randomize.hh" // needed for G4UniformRand
 #include "G4Gamma.hh"
 #include "GateRandomEngine.hh"
+#include <random>
+#include <iostream>
+#include <fstream>
 
 //------------------------------------------------------------------------
 GateSourceOfPromptGammaData::GateSourceOfPromptGammaData()
@@ -39,6 +42,33 @@ void GateSourceOfPromptGammaData::LoadData(std::string mFilename)
 {
   mImage = new GateImageOfHistograms("float");
   mImage->Read(mFilename);
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// MODIF SMARTIN ///////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+  /*mean.reserve(104125);
+  sigma.reserve(104125);
+  std::ifstream tof;
+  int j ;
+  int t ;
+  double m ;
+  double s ;
+  int i = 0;
+  tof.open("data/tof.dat");
+  //if(!tof.is_open()) std::cout << "tof file not found"<<std::endl;
+  while (tof >> j >> m >> s >> t)
+  {
+    mean.push_back(m);
+    //std::cout<<mean[i]<<std::endl;
+    sigma.push_back(s);
+    //std::cout << j << " "<< mean[i]<< " " << sigma[i] << t << std::endl; // check if tof.dat is correctly read 
+    i++;
+  }
+
+  tof.close();
+  ///////////////////////////////////////////////////////////////////////////////
+  //////////////////////////// END MODIF SMARTIN ////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////
+  */
 }
 //------------------------------------------------------------------------
 
@@ -132,28 +162,100 @@ void GateSourceOfPromptGammaData::Initialize()
 
   // ATTENTION: THIS DELETES THE ON DISK DATA FROM MEMORY. ACCESSING THE DATA IN mImage
   // WILL SEGFAULT. METADATA IS KEPT.
-  mImage->Deallocate();
+  //mImage->Deallocate();
+  
 }
 //------------------------------------------------------------------------
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  MODIF S.MARTIN  //////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+/*void GateSourceOfPromptGammaData::ReadToF(double & mean[],double & sigma[])
+{
+  std::ifstream tof;
+  int j ;
+  int t ;
+  double m ;
+  double s ;
+  int i = 0;
+  tof.open("data/tof.dat");
+  //if(!tof.is_open()) std::cout << "tof file not found"<<std::endl;
+  std::cout << "test";
+  while (tof >> j >> m >> s >> t)
+  {
+    mean[i]=m;
+    std::cout<<mean[i]<<std::endl;
+    sigma[i]=s;
+    //std::cout << j << " "<< mean[i]<< " " << sigma[i] << t << std::endl; // check if tof.dat is correctly read 
+    i++;
+  }
+
+  tof.close();
+}*/
+
+double GateSourceOfPromptGammaData::SampleRandomTime(double avg, double sigma)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  std::normal_distribution<double> d (avg,sigma);
+  
+  return d(gen);
+}
 
 //------------------------------------------------------------------------
-void GateSourceOfPromptGammaData::SampleRandomPosition(G4ThreeVector & position)
+void GateSourceOfPromptGammaData::SampleRandomPositionTime(G4ThreeVector & position, G4double & tof)
 {
   // Random 3D position (in pixel). If size == 1, then bug in GenRand
   // (infinite loop), so we test and set random value [0:1]
+
   double x;
+  double y;
+  double z;
+  int index;
+  int i;
+  int j;
+  int k;
+
+  
   if (mImage->GetResolution().x() == 1) x=G4UniformRand();
   else x = mPositionXGen.GenRandX();
-  int i =  mCurrentIndex_i = floor(x);
-  double y;
+  i =  mCurrentIndex_i = floor(x);
+  
   if (mImage->GetResolution().y() == 1) y=G4UniformRand();
   else y = mPositionYGen[i]->GenRandY();
-  int j = mCurrentIndex_j = floor(y);
-  double z;
+  j = mCurrentIndex_j = floor(y);
+  
   if (mImage->GetResolution().z() == 1) z=G4UniformRand();
   else  z = mPositionZGen[i][j]->GenRandZ();
-  mCurrentIndex_k = floor(z);
+  k = mCurrentIndex_k = floor(z);
+ 
+  index = mImage->GetIndexFromPixelIndex(i,j,k);
+
+  std::ifstream tofdata;
+  int q ;
+  int d ;
+  double m ;
+  double s ;
+  int a = 0;
+  tofdata.open("data/tof.dat");
+  //if(!tof.is_open()) std::cout << "tof file not found"<<std::endl;
+  
+  while (a!=index+1)
+  {
+    tofdata >> q >> m >> s >> d;
+    a++;
+  }
+
+  tofdata.close();
+
+  /*if (mean[index] == 0) 
+    {std::cout << "pb :'("<<std::endl;
+   std::cout << i << " " << j << " " << k<<std::endl;
+   std::cout<<index<<std::endl;}*/
+  //std::cout << m << " "<< mean.at(index)<<std::endl;
+  tof = SampleRandomTime( m,s);
 
   // Offset according to image origin (and half voxel position)
   x = mImage->GetOrigin().x() + x*mImage->GetVoxelSize().x();
@@ -166,6 +268,9 @@ void GateSourceOfPromptGammaData::SampleRandomPosition(G4ThreeVector & position)
   position.setZ(z);
 }
 //------------------------------------------------------------------------
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  END MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 //------------------------------------------------------------------------
@@ -188,3 +293,4 @@ void GateSourceOfPromptGammaData::SampleRandomDirection(G4ParticleMomentum & dir
   direction = mAngleGen.GenerateOne();
 }
 //------------------------------------------------------------------------
+

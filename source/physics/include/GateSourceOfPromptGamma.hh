@@ -24,6 +24,10 @@
 #include "GateSourceOfPromptGammaData.hh"
 #include "GateVSource.hh"
 #include "GateSourceOfPromptGammaMessenger.hh"
+#include <iostream>
+#include <fstream>
+#include "GateSourceOfPromptGammaData.hh"
+#include "GateImageOfHistograms.hh"
 
 class GateSourceOfPromptGammaMessenger;
 
@@ -37,14 +41,17 @@ public:
   G4int GeneratePrimaries(G4Event* event);
   void GenerateVertex(G4Event* );
   void SetFilename(G4String filename);
+
   
 protected:
   GateSourceOfPromptGammaMessenger * pMessenger;
   bool mIsInitializedFlag;
   bool mIsInitializedNumberOfPrimariesFlag;
   GateSourceOfPromptGammaData * mData;
+  GateImageOfHistograms * tofData;
   G4String mFilename;
   double mEnergy; // because particle_energy is private (FIXME will be changed)
+ 
 
   void Initialize();
   double ng;

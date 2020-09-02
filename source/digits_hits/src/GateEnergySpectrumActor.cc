@@ -11,15 +11,26 @@
 
 #include "GateEnergySpectrumActorMessenger.hh"
 #include "GateMiscFunctions.hh"
+#include "G4SPSAngDistribution.hh"
+#include <TFile.h>
+#include <TH2.h>
+#include "GateConfiguration.h"
+#include "GateSourceMgr.hh"
+
 
 // g4 // inserted 30 Jan 2016:
+#include <G4HadProjectile.hh>
 #include <G4EmCalculator.hh>
 #include <G4VoxelLimits.hh>
 #include <G4NistManager.hh>
 #include <G4PhysicalConstants.hh>
-
-
-
+#include <G4CrossSectionDataStore.hh>
+#include <G4VProcess.hh>
+#include <G4Track.hh>
+#include <G4Proton.hh>
+#include <G4HadronicProcessStore.hh>
+#include <G4ProtonInelasticProcess.hh>
+#include "GatePromptGammaTLEActor.hh"
 //-----------------------------------------------------------------------------
 /// Constructors (Prototype)
 GateEnergySpectrumActor::GateEnergySpectrumActor(G4String name, G4int depth):
@@ -53,7 +64,13 @@ GateEnergySpectrumActor::GateEnergySpectrumActor(G4String name, G4int depth):
   sumM2=0.;
   sumM3=0.;
   edep = 0.;
-  
+//Modif Simon
+  Tmin = 0.;
+  Tmax = 2.2;
+  TNbins = 1000;
+  mInputDataFilename = "data/pgdb.root";
+  mIsDebugOutputEnabled = false;
+//////////////
   mSaveAsTextFlag = true;
   mSaveAsDiscreteSpectrumTextFlag = false;
   
@@ -73,6 +90,8 @@ GateEnergySpectrumActor::GateEnergySpectrumActor(G4String name, G4int depth):
   mEnableLogBinning = false;  
   mEnableEnergyPerUnitMass = false;
   
+  mEnableTimeDistribution=true;
+
   emcalc = new G4EmCalculator;
 
   pMessenger = new GateEnergySpectrumActorMessenger(this);
@@ -105,8 +124,9 @@ void GateEnergySpectrumActor::Construct()
   EnableUserSteppingAction(true);
   EnableEndOfEventAction(true); // for save every n
   
+  data.Read(mInputDataFilename);
+  data.InitializeMaterial(mIsDebugOutputEnabled);
 
-  
   if (mEnableLogBinning){
       G4double mEminLog = mEmin/MeV; // MeV is the default unit for energy in this actor
       if (mEminLog < 0.000001) mEminLog = 0.000001;
@@ -149,6 +169,7 @@ void GateEnergySpectrumActor::Construct()
           pEnergyEdepSpectrum->SetYTitle("Energy deposition (MeV)");
           allEnabledTH1DHistograms.push_back(pEnergyEdepSpectrum);
       } 
+      
   }
   else
   {
@@ -175,10 +196,23 @@ void GateEnergySpectrumActor::Construct()
           pEnergyEdepSpectrum->SetXTitle("Energy (MeV)");
           pEnergyEdepSpectrum->SetYTitle("Energy deposition (MeV)");
           allEnabledTH1DHistograms.push_back(pEnergyEdepSpectrum);
-      } 
+          }
   }
 
-
+if (mEnableTimeDistribution)
+        {
+          pTimeDistribution = new TH2D("TimeDistribution","Time distribution",GetENBins() ,GetEmin() ,GetEmax() ,GetTNbins() ,GetTmin() ,GetTmax() );
+          pTimeDistribution->SetXTitle("Energy (MeV)");
+          pTimeDistribution->SetYTitle("Time (ns)");
+          pTimeDistribution->Draw("colz");
+        }  
+        if (mEnableTimeDistribution)
+        {
+          pGammaTimeDistribution = new TH2D("GammaTimeDistribution","PG Time distribution",GetENBins() ,GetEmin() ,15 ,GetTNbins() ,GetTmin() ,GetTmax() );
+          pGammaTimeDistribution->SetXTitle("Energy (MeV)");
+          pGammaTimeDistribution->SetYTitle("Time (ns)");
+          pGammaTimeDistribution->Draw("colz");
+        }  
   if (mEnableLETSpectrumFlag) {
       pLETSpectrum = new TH1D("LETSpectrum","LET Spectrum",GetNLETBins(),GetLETmin() ,GetLETmax() );
       pLETSpectrum->SetXTitle("LET (keV/um)");
@@ -199,8 +233,7 @@ void GateEnergySpectrumActor::Construct()
   } 
 
   if (mEnableEdepTimeHistoFlag){
-      pEdepTime  = new TH2D("edepHistoTime","Energy deposited with time per event",
-                            GetEdepNBins(),0,20,GetEdepNBins(),GetEdepmin(),GetEdepmax());
+      pEdepTime  = new TH2D("edepHistoTime","Energy deposited with time per event",GetEdepNBins(),100,200,GetEdepNBins(),GetEdepmin(),GetEdepmax());
       pEdepTime->SetXTitle("t (ns)");
       pEdepTime->SetYTitle("E_{dep} (MeV)");
 
@@ -304,6 +337,7 @@ void GateEnergySpectrumActor::BeginOfRunAction(const G4Run *)
 {
   GateDebugMessage("Actor", 3, "GateEnergySpectrumActor -- Begin of Run\n");
   ResetData();
+  
 }
 //-----------------------------------------------------------------------------
 
@@ -313,17 +347,19 @@ void GateEnergySpectrumActor::BeginOfEventAction(const G4Event*)
 {
   GateDebugMessage("Actor", 3, "GateEnergySpectrumActor -- Begin of Event\n");
   newEvt = true;
+  protonprocess = false;
   edep = 0.;
-  tof  = 0;
+  tof  = 0.;
+  t1 = 0.;
+  Ek = 0.;
 }
 //-----------------------------------------------------------------------------
 
-
 //-----------------------------------------------------------------------------
-void GateEnergySpectrumActor::EndOfEventAction(const G4Event*)
+void GateEnergySpectrumActor::EndOfEventAction(const G4Event* )
 {
   GateDebugMessage("Actor", 3, "GateEnergySpectrumActor -- End of Event\n");
-  
+    {
     if (edep > 0) {
         if (mEnableEdepHistoFlag){
             pEdep->Fill(edep/MeV);
@@ -332,10 +368,7 @@ void GateEnergySpectrumActor::EndOfEventAction(const G4Event*)
             pEdepTime->Fill(tof/ns,edep/MeV);
         }
       }
-  
-  
-  
-      
+   }
   nEvent++;
 }
 //-----------------------------------------------------------------------------
@@ -348,6 +381,7 @@ void GateEnergySpectrumActor::PreUserTrackingAction(const GateVVolume *, const G
   newTrack = true;
   if (t->GetParentID()==1) nTrack++;
   edepTrack = 0.;
+  mass = t->GetParticleDefinition()->GetPDGMass();
 }
 //-----------------------------------------------------------------------------
 
@@ -358,6 +392,8 @@ void GateEnergySpectrumActor::PostUserTrackingAction(const GateVVolume *, const 
   GateDebugMessage("Actor", 3, "GateEnergySpectrumActor -- End of Track\n");
   double eloss = Ei-Ef;
   if (mEnableElossHistoFlag && eloss > 0) pDeltaEc->Fill(eloss/MeV,t->GetWeight() );
+
+   
   
   if (mEnableEdepTrackHistoFlag && edepTrack > 0)  pEdepTrack->Fill(edepTrack/MeV,t->GetWeight() );
 }
@@ -368,10 +404,12 @@ void GateEnergySpectrumActor::PostUserTrackingAction(const GateVVolume *, const 
 void GateEnergySpectrumActor::UserSteppingAction(const GateVVolume *, const G4Step* step)
 {
   assert(step->GetTrack()->GetWeight() == 1.); // edep doesnt handle weight
-
   if(step->GetTotalEnergyDeposit()>0.01) sumM1+=step->GetTotalEnergyDeposit();
   else if(step->GetTotalEnergyDeposit()>0.00001) sumM2+=step->GetTotalEnergyDeposit();
   else sumM3+=step->GetTotalEnergyDeposit();
+  
+  material = step->GetPreStepPoint()->GetMaterial();
+ 
 
   edep += step->GetTotalEnergyDeposit();
   edepTrack += step->GetTotalEnergyDeposit();
@@ -382,6 +420,10 @@ void GateEnergySpectrumActor::UserSteppingAction(const GateVVolume *, const G4St
     tof = pretof + posttof;
     tof /= 2;
     //cout << "****************** new event tof=" << pretof << "/" << posttof << "/" << tof << " edep=" << edep << endl;
+    //Modif Simon
+
+    
+    /////
     newEvt = false;
   } else {
     double pretof = step->GetPreStepPoint()->GetGlobalTime();
@@ -390,15 +432,36 @@ void GateEnergySpectrumActor::UserSteppingAction(const GateVVolume *, const G4St
     ltof /= 2;
     //cout << "****************** diff tof=" << ltof << " edep=" << edep << endl;
   }
+  //protonprocess = (process == protonInelastic);
+  //if (protonprocess) 
+  //{
+  bool primary = step->GetTrack()->GetTrackID() == 1;
+  if (primary){
+  Ei=step->GetPreStepPoint()->GetKineticEnergy();
+    t1 = step->GetPreStepPoint()->GetLocalTime();
+    //std::cout << t1/ns << std::endl;
+    Ek = step->GetPostStepPoint()->GetKineticEnergy();
+    //Output PG
+   
+     TH1D * h = data.GetGammaEnergySpectrum(material->GetIndex(), Ek);
+     for (int i = 0; i < 50; ++i)
+     {
+       Eg = h->GetRandom();
+      pGammaTimeDistribution->Fill(Eg/MeV,t1/ns);  
+     }
+      
+    pTimeDistribution->Fill(Ek/MeV,t1/ns);
+    }
+
+   //} 
     G4double atomicMassScaleFactor = 1.;
     if (mEnableEnergyPerUnitMass){
         atomicMassScaleFactor = (double)(step->GetTrack()->GetParticleDefinition()->GetAtomicMass());
     }
   Ef=step->GetPostStepPoint()->GetKineticEnergy();
   if(newTrack){
-    Ei=step->GetPreStepPoint()->GetKineticEnergy();
-
     
+   // pTimeDistribution->SetBit(TH1::kCanRebin);
     if (mEnableEnergySpectrumNbPartFlag){
         pEnergySpectrumNbPart->Fill(Ei/MeV/atomicMassScaleFactor,step->GetTrack()->GetWeight());
     }
@@ -420,7 +483,7 @@ void GateEnergySpectrumActor::UserSteppingAction(const GateVVolume *, const G4St
     //}
     newTrack=false;
   }
-  
+    Emoy = (Ei+Ef)/2;
    if (mEnableEnergySpectrumFluenceTrackFlag){
        G4double stepLength = step->GetStepLength();
        pEnergySpectrumFluenceTrack->Fill(Ei/MeV/atomicMassScaleFactor,step->GetTrack()->GetWeight()*stepLength);
@@ -429,8 +492,8 @@ void GateEnergySpectrumActor::UserSteppingAction(const GateVVolume *, const G4St
    if (mEnableEnergySpectrumEdepFlag){
        pEnergyEdepSpectrum->Fill(Ei/MeV/atomicMassScaleFactor,step->GetTrack()->GetWeight()*step->GetTotalEnergyDeposit()/MeV);
    }
+   
   if(mEnableLETSpectrumFlag) {
-      G4Material* material = step->GetPreStepPoint()->GetMaterial();//->GetName(); 
       G4double energy1 = step->GetPreStepPoint()->GetKineticEnergy();
       G4double energy2 = step->GetPostStepPoint()->GetKineticEnergy();
       G4double energy=(energy1+energy2)/2;

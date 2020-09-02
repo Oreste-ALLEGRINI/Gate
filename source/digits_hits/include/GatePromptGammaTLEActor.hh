@@ -18,11 +18,12 @@
 #include "GateImageOfHistograms.hh"
 #include "GatePromptGammaData.hh"
 #include "GateVImageVolume.hh"
-
+#include <G4GeneralParticleSource.hh>
 #include <TFile.h>
 #include <TH1.h>
 #include <TH2.h>
-
+#include <fstream>
+#include <iostream>
 //-----------------------------------------------------------------------------
 class GatePromptGammaTLEActor: public GateVImageActor
 {
@@ -46,7 +47,13 @@ public:
   void EnableOutputMatch(bool b) { mIsOutputMatchEnabled = b; }
   //void EnableSysVarianceImage(bool b) { mIsSysVarianceImageEnabled = b; }
   //void EnableIntermediaryUncertaintyOutput(bool b) { mIsIntermediaryUncertaintyOutputEnabled = b; }
+  double GetEmin() {return mEmin; }
+  double GetEmax() {return mEmax;}
+  int GetENBins() {return mENBins;}
 
+  double GetTmin() {return Tmin;}
+  double GetTmax() {return Tmax;}
+  int GetTNbins() {return TNbins;}
 protected:
   GatePromptGammaTLEActor(G4String name, G4int depth=0);
   GatePromptGammaTLEActorMessenger * pMessenger;
@@ -73,13 +80,42 @@ protected:
   GateImageOfHistograms * tracklsq;     //L_i^2. also intermediate output: track squared length per voxel per E_proton
 
   //output, calculated at end of simu
+  GateImageOfHistograms * mImagetof;
   GateImageOfHistograms * mImageGamma;  //oldstyle main output,
   GateImageOfHistograms * tle;          //main output (yield)
   GateImageOfHistograms * tlesysvar;    //systematic variance per voxel, per E_gamma. Not used.
   GateImageOfHistograms * tlevariance;  //uncertainty per voxel, per E_gamma. Not used.
+  
+  double mEmin;
+  double mEmax;
+  int mENBins;
+
+  double Tmin;
+  double Tmax;
+  int TNbins;
+  bool protonprocess;
+
+  
+  GateImageOfHistograms * mTof;
+
+
+  double lt[104125]; //Ne marche qu'avec le fantome vpg
+  double lt2[104125];
+  double l[104125];
+  double l2[104125];
+  double NProt[104125];
+  
+  TH2D * pProtonTimeDistribution[85];
+  TH2D * pTime[85];
+  int true_index[85];
+  TFile * pTfile;
+  unsigned int sizeX;
+  unsigned int sizeY;
+  unsigned int sizeZ;
 
   GateImageInt mLastHitEventImage;      //store eventID when last updated.
   int mCurrentEvent;                    //monitor event. TODO: not sure if necesary
+    TH2D * pGammaTimeDistribution[85];
 };
 //-----------------------------------------------------------------------------
 

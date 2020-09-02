@@ -11,7 +11,7 @@
 // Gate
 #include "GateImageOfHistograms.hh"
 #include "GateMiscFunctions.hh"
-
+#include "GatePromptGammaTLEActor.hh"
 // Root
 #include <TFile.h>
 
@@ -189,6 +189,7 @@ void GateImageOfHistograms::ComputeTotalOfCountsImageDataDouble(std::vector<doub
   }
 }
 //-----------------------------------------------------------------------------
+
 
 
 //-----------------------------------------------------------------------------

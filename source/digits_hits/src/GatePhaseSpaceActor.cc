@@ -52,7 +52,7 @@ GatePhaseSpaceActor::GatePhaseSpaceActor(G4String name, G4int depth):
   EnableProdVol = true;
   EnableProdProcess = true;
   EnableWeight = true;
-  EnableTime = false;
+  EnableTime = true;
   EnableLocalTime = false;
   EnableMass = true;
   EnableSec = false;
@@ -75,7 +75,7 @@ GatePhaseSpaceActor::GatePhaseSpaceActor(G4String name, G4int depth):
   bEnablePrimaryEnergy = false;
   bEnableSpotID = false;
   bEnableCompact = false;
-  bEnableEmissionPoint = false;
+  bEnableEmissionPoint = true;
   bEnablePDGCode = false;
   bEnableTOut = true;
   bEnableTProd = true;
@@ -136,7 +136,7 @@ void GatePhaseSpaceActor::Construct()
 
   if (mFileType == "rootFile") {
 
-    pFile = new TFile(mSaveFilename, "RECREATE", "ROOT file for phase space", 9);
+    pFile = new TFile(mSaveFilename, "RECREATE", "ROOT file for phase space", 0);
     pListeVar = new TTree("PhaseSpace", "Phase space tree");
 
     if (GetMaxFileSize() != 0) pListeVar->SetMaxTreeSize(GetMaxFileSize());

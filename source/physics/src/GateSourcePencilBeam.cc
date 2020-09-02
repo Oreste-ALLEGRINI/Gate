@@ -305,7 +305,7 @@ void GateSourcePencilBeam::GenerateVertex( G4Event* aEvent )
 
   //-------- PARTICLE GENERATION - START------------------
   G4PrimaryVertex* vertex;
-  vertex = new G4PrimaryVertex(Pos, mparticle_time);
+  vertex = new G4PrimaryVertex(Pos, 0); // POTENTIELLEMENT GROSSE CONNERIE mparticle_time à la place de 0 pour corriger
   vertex->SetWeight(mWeight);
 
   double mass =  particle_definition->GetPDGMass();
