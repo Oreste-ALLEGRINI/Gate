@@ -9,14 +9,12 @@
 #include "GateEnergySpectrumActorMessenger.hh"
 
 #ifdef G4ANALYSIS_USE_ROOT
-
 #include "GateEnergySpectrumActor.hh"
 #include "G4SystemOfUnits.hh"
 
 //-----------------------------------------------------------------------------
 GateEnergySpectrumActorMessenger::GateEnergySpectrumActorMessenger(GateEnergySpectrumActor * v)
-  : GateActorMessenger(v),
-    pActor(v)
+  : GateActorMessenger(v), pActor(v)
 {
   BuildCommands(baseName+pActor->GetObjectName());
   
@@ -39,6 +37,7 @@ GateEnergySpectrumActorMessenger::~GateEnergySpectrumActorMessenger()
   delete pEdepmaxCmd;
   delete pEdepminCmd;
   delete pEdepNBinsCmd;
+  delete pSetInputDataFileCmd;
 }
 //-----------------------------------------------------------------------------
 
@@ -48,6 +47,11 @@ void GateEnergySpectrumActorMessenger::BuildCommands(G4String base)
 {
   G4String guidance;
   G4String bb;
+
+  bb = base+"/setInputDataFile";
+  pSetInputDataFileCmd = new G4UIcmdWithAString(bb, this);
+  guidance = G4String("Set input root filename with proton/gamma energy 2D spectrum (obtained from PromptGammaStatisticsActor).");
+  pSetInputDataFileCmd->SetGuidance(guidance);
 
   bb = base+"/energySpectrum/setEmin";
   pEminCmd = new G4UIcmdWithADoubleAndUnit(bb, this);
@@ -244,6 +248,7 @@ void GateEnergySpectrumActorMessenger::SetNewValue(G4UIcommand* cmd, G4String ne
   
   if(cmd == pEnableLogBinningCMD) pActor->SetLogBinning(  pEnableLogBinningCMD->GetNewBoolValue(newValue)  ) ;
   if(cmd == pEnableEnergyPerUnitMassCMD) pActor->SetEnergyPerUnitMass(  pEnableEnergyPerUnitMassCMD->GetNewBoolValue(newValue)  ) ;
+  if(cmd == pSetInputDataFileCmd) pActor->SetInputDataFilename( newValue );
   GateActorMessenger::SetNewValue(cmd,newValue);
 }
 //-----------------------------------------------------------------------------

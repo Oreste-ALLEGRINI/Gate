@@ -272,6 +272,7 @@ G4double GateVSource::GetNextTime( G4double timeStart )
         {
 	  // Force life time to 0, time is managed by GATE not G4
 	  GetParticleDefinition()->SetPDGLifeTime(0);
+
 	  if( m_forcedUnstableFlag )
             {
 	      if( m_forcedLifeTime > 0. )
@@ -463,7 +464,7 @@ G4int GateVSource::GeneratePrimaries( G4Event* event )
       else if ((GetType() == G4String("")) || (GetType() == G4String("gps"))) {
         // decay time for ions inside the timeSlice controlled here and not by RDM
         // NB: temporary: secondary ions of the decay chain not properly treated
-        SetParticleTime( m_time );
+        //SetParticleTime( m_time );  // TODO Uncomment 
         GeneratePrimaryVertex( event );
 
       }
@@ -607,8 +608,8 @@ G4int GateVSource::GeneratePrimaries( G4Event* event )
             }
 
           G4double eventTime = (*iter)->GetTime();
-          (GateSourceMgr::GetInstance())->SetTime( eventTime );
-          SetTime(eventTime);
+          (GateSourceMgr::GetInstance())->SetTime( eventTime ); //eventTime
+          SetTime(eventTime); // eventTime
           /// we generate 1 particle for each  PrimaryVertex we got from Tracks Root file
           G4ParticleTable  *particleTable = G4ParticleTable::GetParticleTable();
           m_pd = particleTable->FindParticle( PDGCode );
@@ -681,7 +682,7 @@ void GateVSource::GeneratePrimaryVertex( G4Event* aEvent )
       // Set placement relative to attached volume
       ChangeParticlePositionRelativeToAttachedVolume(particle_position);
 
-      G4PrimaryVertex* vertex = new G4PrimaryVertex(particle_position, GetParticleTime());
+      G4PrimaryVertex* vertex = new G4PrimaryVertex(particle_position, 0 /*GetTime()*/);
       if (GetNumberOfParticles() == 0) {
         GateError("Something went wrong, nb of particle is 0 in GateVSource::GeneratePrimaryVertex\n");
       }
@@ -750,7 +751,7 @@ G4String nameMaterial = material->GetName();*/
   if ( theMode == kDetector )
     {
       // create a new vertex
-      G4PrimaryVertex* vertex =  new G4PrimaryVertex(G4ThreeVector(0.,0.,0.),GetTime());
+      G4PrimaryVertex* vertex =  new G4PrimaryVertex(G4ThreeVector(0.,0.,0.),0/*GetParticleTime()*/); //Fort potentiel de bug
 
       if(GetVerboseLevel() > 0)
         G4cout << "Creating primaries and assigning to vertex\n";

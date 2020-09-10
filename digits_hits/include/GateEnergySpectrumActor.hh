@@ -18,12 +18,18 @@
   andreas.resch@meduniwien.ac.at
 */
 
+
+
 #ifndef GATEENERGYSPECTRUMACTOR_HH
 #define GATEENERGYSPECTRUMACTOR_HH
 
 #include "GateVActor.hh"
 #include "GateActorMessenger.hh"
 #include "GateDiscreteSpectrum.hh"
+#include "GatePromptGammaData.hh"
+
+#include "GateSourceOfPromptGammaData.hh"
+#include "GateVSource.hh"
 
 #include <TROOT.h>
 #include <TFile.h>
@@ -59,10 +65,11 @@ public:
 
   virtual void PreUserTrackingAction(const GateVVolume *, const G4Track*) ;
   virtual void PostUserTrackingAction(const GateVVolume *, const G4Track*) ;
-  virtual void EndOfEventAction(const G4Event*);
+  virtual void EndOfEventAction(const G4Event *);
 
   //-----------------------------------------------------------------------------
   /// Saves the data collected to the file
+  void SetInputDataFilename(std::string filename) {mInputDataFilename = filename;};
   virtual void SaveData();
   virtual void ResetData();
 
@@ -95,6 +102,10 @@ public:
   double GetEdepmax() {return mEdepmax;}
   int GetEdepNBins() {return mEdepNBins;}
 
+  double GetTmin() {return Tmin;}
+  double GetTmax() {return Tmax;}
+  int GetTNbins() {return TNbins;}
+
   void SetEdepmin(double v) {mEdepmin = v;}
   void SetEdepmax(double v) {mEdepmax = v;}
   void SetEdepNBins(int v) {mEdepNBins = v;}
@@ -112,8 +123,13 @@ public:
   void SetEdepTimeHistoCalc(bool b) {mEnableEdepTimeHistoFlag= b; }
   void SetEdepTrackHistoCalc(bool b) {mEnableEdepTrackHistoFlag = b; }
   void SetElossHistoCalc(bool b) {mEnableElossHistoFlag = b; }
-  
-  
+ 
+  std::string mInputDataFilename;
+  GatePromptGammaData data;
+  double Eg;
+  double mass;
+  G4Material* material;
+
   void SetLogBinning(bool b) {mEnableLogBinning = b; }
   void SetEnergyPerUnitMass(bool b) {mEnableEnergyPerUnitMass = b; }
 protected:
@@ -139,7 +155,10 @@ protected:
   TH1D * pEdep;
   TH2D * pEdepTime;
   TH1D * pEdepTrack;
-  
+//Modif simon
+  TH2D * pTimeDistribution;
+  TH2D * pGammaTimeDistribution;
+//  
   std::list<TH1D*> allEnabledTH1DHistograms;
 
   TH1D * pLETSpectrum;
@@ -177,7 +196,17 @@ protected:
   double edep;
   double tof;
   double edepTrack;
-
+//Modif Simon
+  double Tmin;
+  double t1;
+  double ti;
+  double Tmax;
+  int TNbins;
+  bool protonprocess;
+  double Emoy;
+  double Ek;
+  
+//////
   GateActorMessenger* pMessenger;
 
 
@@ -197,8 +226,10 @@ protected:
   bool mEnableElossHistoFlag;
   bool mEnableLogBinning;
   bool mEnableEnergyPerUnitMass;
-  
-  
+  //Modif Simon
+  bool mEnableTimeDistribution;
+  bool mIsDebugOutputEnabled;
+  ////////
   G4EmCalculator * emcalc;
 };
 

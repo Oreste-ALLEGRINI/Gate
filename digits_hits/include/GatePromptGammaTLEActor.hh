@@ -18,11 +18,12 @@
 #include "GateImageOfHistograms.hh"
 #include "GatePromptGammaData.hh"
 #include "GateVImageVolume.hh"
-
+#include <G4GeneralParticleSource.hh>
 #include <TFile.h>
 #include <TH1.h>
 #include <TH2.h>
-
+#include <fstream>
+#include <iostream>
 //-----------------------------------------------------------------------------
 class GatePromptGammaTLEActor: public GateVImageActor
 {
@@ -46,7 +47,13 @@ public:
   void EnableOutputMatch(bool b) { mIsOutputMatchEnabled = b; }
   //void EnableSysVarianceImage(bool b) { mIsSysVarianceImageEnabled = b; }
   //void EnableIntermediaryUncertaintyOutput(bool b) { mIsIntermediaryUncertaintyOutputEnabled = b; }
+  double GetEmin() {return mEmin; }
+  double GetEmax() {return mEmax;}
+  int GetENBins() {return mENBins;}
 
+  double GetTmin() {return Tmin;}
+  double GetTmax() {return Tmax;}
+  int GetTNbins() {return TNbins;}
 protected:
   GatePromptGammaTLEActor(G4String name, G4int depth=0);
   GatePromptGammaTLEActorMessenger * pMessenger;
@@ -73,13 +80,42 @@ protected:
   GateImageOfHistograms * tracklsq;     //L_i^2. also intermediate output: track squared length per voxel per E_proton
 
   //output, calculated at end of simu
+  GateImageOfHistograms * mImagetof;
   GateImageOfHistograms * mImageGamma;  //oldstyle main output,
   GateImageOfHistograms * tle;          //main output (yield)
   GateImageOfHistograms * tlesysvar;    //systematic variance per voxel, per E_gamma. Not used.
   GateImageOfHistograms * tlevariance;  //uncertainty per voxel, per E_gamma. Not used.
+  
+  double mEmin;
+  double mEmax;
+  int mENBins;
 
+  double Tmin;
+  double Tmax;
+  int TNbins;
+  bool protonprocess;
+
+  
+  GateImageOfHistograms * mTof;
+  const static unsigned int sizeX = 35;
+  const static unsigned int sizeY = 125;
+  const static unsigned int sizeZ = 35;
+ 
+
+  double lt[sizeX*sizeY*sizeZ]; //Ne marche qu'avec le fantome vpg
+  double lt2[sizeX*sizeY*sizeZ];
+  double l[sizeX*sizeY*sizeZ];
+  double l2[sizeX*sizeY*sizeZ];
+  double NProt[sizeX*sizeY*sizeZ];
+  
+  TH2D * pProtonTimeDistribution[sizeY];
+  TH2D * pTime[sizeY];
+  int true_index[sizeY];
+  TFile * pTfile;
+  
   GateImageInt mLastHitEventImage;      //store eventID when last updated.
   int mCurrentEvent;                    //monitor event. TODO: not sure if necesary
+    TH2D * pGammaTimeDistribution[sizeY];
 };
 //-----------------------------------------------------------------------------
 

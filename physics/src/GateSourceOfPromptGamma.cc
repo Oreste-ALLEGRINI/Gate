@@ -14,6 +14,10 @@
 #include "GateApplicationMgr.hh"
 #include "GateSourceMgr.hh"
 
+#include "GateSourceOfPromptGammaData.hh"
+#include "GateImageOfHistograms.hh"
+#include <iostream>
+#include <fstream>
 #include "G4ParticleTable.hh"
 #include "G4Event.hh"
 #include "G4Gamma.hh"
@@ -55,10 +59,10 @@ void GateSourceOfPromptGamma::Initialize()
   if (mIsInitializedFlag) return;
   // Get filename, load data
   mData->LoadData(mFilename);
-
+  
   // Compute cmulative marginals information
   mData->Initialize();
-
+  
   // Particle type is photon. Could not be initialize here.
 
   // Weight is fixed for the moment (could change in the future)
@@ -118,7 +122,17 @@ void GateSourceOfPromptGamma::GenerateVertex(G4Event* aEvent)
 
   // Position
   G4ThreeVector particle_position;
-  mData->SampleRandomPosition(particle_position);
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////  MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+
+  G4double particle_time;
+  
+  mData->SampleRandomPositionTime(particle_position, particle_time); //Modif in GateSourceOfPromptGammaData
+  
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////  END MODIF S.MARTIN  //////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
   // The position coordinate is expressed in the coordinate system
   // (CS) of the volume it was attached to during the TLEActor
@@ -143,12 +157,12 @@ void GateSourceOfPromptGamma::GenerateVertex(G4Event* aEvent)
   double px = pmom * particle_direction[0]/d;
   double py = pmom * particle_direction[1]/d;
   double pz = pmom * particle_direction[2]/d;
-
+ 
   // Create vertex
   G4PrimaryParticle* particle =
     new G4PrimaryParticle(G4Gamma::Gamma(), px, py, pz);
   G4PrimaryVertex* vertex;
-  vertex = new G4PrimaryVertex(particle_position, GetParticleTime());
+  vertex = new G4PrimaryVertex(particle_position, particle_time);
   vertex->SetWeight(1.0); // FIXME
   vertex->SetPrimary(particle);
   aEvent->AddPrimaryVertex(vertex);

@@ -416,8 +416,8 @@ TH1D * GatePromptGammaData::GetGammaEnergySpectrum(const int & materialIndex,
   // Get the projected histogram of the material
   TH1D * h = mGammaEnergyHistoByMaterialByProtonEnergy[materialIndex][binX];
 
-  /* //DEBUG: verified that these two output the same (modulus density)
-  TFile f1("histos1.root","new");
+   //DEBUG: verified that these two output the same (modulus density)
+  /*TFile f1("histos1.root","new");
   TH1D * h = mGammaEnergyHistoByMaterialByProtonEnergy[materialIndex][binX];
   h->Write();
 

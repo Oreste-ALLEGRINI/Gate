@@ -27,6 +27,9 @@
 #include "G4SPSEneDistribution.hh"
 #include "GateConfiguration.h"
 #include "GateImageOfHistograms.hh"
+#include <random>
+#include <iostream>
+#include <fstream>
 
 //------------------------------------------------------------------------
 class GateSourceOfPromptGammaData
@@ -35,19 +38,28 @@ public:
   GateSourceOfPromptGammaData();
   ~GateSourceOfPromptGammaData();
 
-  void SampleRandomPosition(G4ThreeVector & position);
+  void SampleRandomPositionTime(G4ThreeVector & position, G4double & tof);
   void SampleRandomEnergy(double & energy);
   void SampleRandomDirection(G4ParticleMomentum & direction);
+  double SampleRandomTime(double avg,double sigma);
+  //void ReadToF( double & mean[], double & sigma[]);
 
   void LoadData(std::string mFilename);
   void Initialize();
   double computesum;
   double ComputeSum() { return computesum; }
-
+  
 protected:
   // The 3D prompt gamma distribution
   GateImageOfHistograms * mImage;
   std::vector<float> mDataCounts;
+
+  //double * mean = new double[104125];
+  //double * sigma = new double[104125];
+  //std::vector<float> mean ;
+  
+  //std::vector<float> sigma;
+
 
   // Current pixel index for position in 3D space
   int mCurrentIndex_i;
